@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<!-- saved from url=(0032)https://negotiateui.netlify.app/ -->
+<html lang="en" id="html-root"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NegotiateAI — Combined</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface2: #27272a;
+  --border: #3f3f46;
+  --text: #fafafa;
+  --muted: #71717a;
+  --dim: #52525b;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --purple: #a855f7;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── HEADER ─── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  padding: 13px 22px;
+  border-bottom: 1px solid var(--surface2);
+  flex-shrink: 0;
+  position: relative;
+}
+.caller { display: flex; align-items: center; gap: 11px; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 12px; flex-shrink: 0;
+}
+.caller-name { font-size: 14px; font-weight: 600; }
+.caller-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.call-meta   { display: flex; align-items: center; gap: 13px; }
+
+/* Language Switcher */
+.lang-switch {
+  display: flex;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.lang-switch select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 24px 6px 10px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+.lang-switch::after {
+  content: "▼";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.lang-switch select:hover {
+  background: rgba(255,255,255,0.1);
+}
+.lang-switch select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.live { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--green); font-weight: 500; }
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+.timer { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
+.badge {
+  padding: 3px 9px; border-radius: 5px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.07em; background: rgba(59,130,246,0.12);
+  color: var(--blue); border: 1px solid rgba(59,130,246,0.22);
+}
+
+/* Фоновая подсветка режима */
+.mode-glow {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none; z-index: 0;
+  transition: background 1.5s ease-in-out;
+}
+.mode-glow.coop { background: radial-gradient(circle at 50% 0%, rgba(34,197,94,0.20) 0%, transparent 75%); }
+.mode-glow.opp  { background: radial-gradient(circle at 50% 0%, rgba(239,68,68,0.20) 0%, transparent 75%); }
+
+/* Текстовая метка фазы */
+.mode-text {
+  position: absolute; top: 44px; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; z-index: 3; pointer-events: none;
+  transition: color 1.5s ease-in-out, text-shadow 1.5s ease-in-out;
+}
+.mode-text.coop { color: var(--green); text-shadow: 0 0 12px rgba(34,197,94,0.6); }
+.mode-text.opp  { color: var(--red); text-shadow: 0 0 12px rgba(239,68,68,0.6); }
+
+/* ─── ФОНОВЫЙ СИЛУЭТ ─── */
+.bg-silhouette {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 65vh;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 1;
+  color: var(--text);
+}
+.bg-silhouette svg {
+  height: 100%;
+  width: auto;
+}
+
+/* ─── MAIN ─── */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ─── LEFT CONTENT ─── */
+.left {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  gap: 20px;
+  overflow: hidden;
+}
+
+/* Метка зоны взгляда — центр */
+.eye-label {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--dim);
+  display: flex; align-items: center; gap: 8px;
+  white-space: nowrap; pointer-events: none;
+}
+.eye-label::before, .eye-label::after {
+  content: ''; width: 36px; height: 1px; background: var(--surface2);
+}
+
+/* Волна — центр */
+.wave-area {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  position: relative; z-index: 2;
+}
+.speaker-tag {
+  font-size: 11px; color: var(--muted); letter-spacing: 0.05em;
+  text-transform: uppercase; font-weight: 500;
+}
+
+/* Лог триггеров — низ */
+.trigger-log {
+  position: absolute;
+  bottom: 14px; left: 16px; right: 16px;
+  display: flex; gap: 7px; overflow-x: auto;
+}
+.trigger-log::-webkit-scrollbar { display: none; }
+.trig {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 20px;
+  font-size: 11px; font-weight: 500; white-space: nowrap;
+  border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+}
+.trig.fresh {
+  border-color: var(--amber); color: var(--amber);
+  background: rgba(245,158,11,0.07); animation: chipIn 0.3s ease;
+}
+@keyframes chipIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+
+/* ─── СУФЛЁР ─── */
+.sufler {
+  width: 320px; z-index: 5; margin-bottom: 10px;
+}
+.sufler-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 8px; text-align: center;
+}
+.hint {
+  font-size: 14px;
+  color: rgba(250,250,250,0.88);
+  background: rgba(59,130,246,0.07);
+  border: 1px solid rgba(59,130,246,0.18);
+  border-radius: 10px;
+  padding: 11px 16px;
+  text-align: center;
+  line-height: 1.5;
+  animation: hintIn 0.4s ease;
+}
+.hint .arr { color: var(--blue); margin-right: 7px; }
+@keyframes hintIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+.hint.fadeout { animation: hintOut 0.35s ease forwards; }
+@keyframes hintOut { to{opacity:0;transform:translateY(-5px)} }
+
+/* ─── ВОЛНА И РАТИО ─── */
+.speaker-ratio { display: flex; gap: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; align-items: center; }
+.sr-them { color: var(--purple); transition: all 0.3s ease; }
+.sr-us { color: var(--blue); transition: all 0.3s ease; }
+.sr-div { color: var(--surface2); }
+.sr-active { text-shadow: 0 0 10px currentColor; opacity: 1; }
+.sr-inactive { opacity: 0.4; }
+
+/* ─── HYBRID AGENDA (Gantt + Player) ─── */
+.agenda-hybrid {
+  position: absolute; top: 65px; left: 50%; transform: translateX(-50%);
+  width: 85%; max-width: 650px;
+  background: rgba(24,24,27,0.85); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px; backdrop-filter: blur(12px); z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+}
+.player-cover {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--blue); flex-shrink: 0; margin: 0;
+}
+.gantt-track {
+  display: flex; gap: 6px; flex: 1; height: 36px; overflow: hidden;
+}
+.g-step {
+  border-radius: 6px; padding: 0 10px; display: flex; flex-direction: column; justify-content: center;
+  background: rgba(255,255,255,0.03); color: var(--muted);
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden; white-space: nowrap; position: relative;
+}
+.g-step.done { display: none; }
+.g-step.upcoming { flex: 1; align-items: center; font-size: 10px; font-weight: 500; }
+.g-step.active {
+  flex: 4; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3);
+  color: var(--blue); padding: 5px 12px; justify-content: space-between;
+}
+.g-active-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 600; }
+.g-active-title { display: flex; align-items: center; gap: 6px; }
+.g-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 8px var(--blue); }
+.g-time { font-variant-numeric: tabular-nums; font-size: 10px; opacity: 0.9; }
+.g-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; overflow: hidden; margin-top: 4px; }
+.g-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--blue); border-radius: 2px; transition: width 1s linear, background-color 0.5s ease; }
+
+.g-step.active.warn { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: var(--amber); }
+.g-step.active.warn .g-dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.g-step.active.warn .g-fill { background: var(--amber); }
+
+.g-step.active.danger { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+.g-step.active.danger .g-dot { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 1s infinite; }
+.g-step.active.danger .g-fill { background: var(--red); }
+.g-step.active.danger .g-time { color: var(--red); font-weight: 700; animation: pulse 1s infinite; }
+
+/* ─── BATTLECARD ─── */
+.battlecard {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 288px;
+  background: var(--surface);
+  border: 1px solid rgba(245,158,11,0.28);
+  border-radius: 13px;
+  padding: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,158,11,0.07);
+  transform: translateX(-115%);
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 50;
+}
+.battlecard.show { transform: translateX(0); }
+
+.bc-tag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 6px;
+}
+.bc-top {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px;
+}
+.bc-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--amber);
+}
+.bc-timer { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bc-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.bc-list  { display: flex; flex-direction: column; gap: 7px; }
+.bc-item  { display: flex; gap: 8px; font-size: 12px; color: #d4d4d8; line-height: 1.5; }
+.bc-item::before { content: '•'; color: var(--blue); flex-shrink: 0; }
+.bc-prog  { height: 2px; background: var(--surface2); border-radius: 1px; margin-top: 13px; }
+.bc-fill  { height: 100%; background: var(--amber); border-radius: 1px; transition: width 1s linear; }
+.bc-close {
+  margin-top: 10px; width: 100%; padding: 7px; border-radius: 7px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); font-size: 11px; cursor: pointer; transition: all 0.2s;
+}
+.bc-close:hover { background: var(--surface2); color: var(--text); }
+
+/* ─── ZOPA BOARD (IN HEADER) ─── */
+.zopa-panel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 360px; z-index: 10; display: flex; flex-direction: column;
+}
+.zopa-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 16px; text-align: center;
+}
+.zopa-chart {
+  position: relative; height: 32px;
+}
+.z-bar {
+  position: absolute; height: 14px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.8);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.z-bar.us {
+  top: 0; right: 0; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.4); color: var(--blue);
+}
+.z-bar.them {
+  bottom: 0; left: 0; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: var(--purple);
+}
+.z-zopa {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(34,197,94,0.25); border: 1px solid var(--green);
+  box-shadow: 0 0 16px rgba(34,197,94,0.4); z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 0.1em;
+  transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0; border-radius: 4px; pointer-events: none;
+}
+.z-zopa.active {
+  opacity: 1; animation: zopaPulse 2s infinite;
+}
+@keyframes zopaPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.3); }
+  50% { box-shadow: 0 0 18px rgba(34,197,94,0.7); }
+}
+.z-label {
+  position: absolute; font-size: 9px; font-weight: 600; color: var(--muted);
+  white-space: nowrap; transform: translateX(-50%); transition: left 0.8s ease, right 0.8s ease;
+}
+.z-label.top { top: -16px; }
+.z-label.bottom { bottom: -16px; }
+.z-label::after {
+  content: ''; position: absolute; width: 1px; height: 5px; background: var(--border);
+  left: 50%; transform: translateX(-50%);
+}
+.z-label.top::after { bottom: -8px; }
+.z-label.bottom::after { top: -8px; }
+
+</style>
+</head>
+<body data-new-gr-c-s-check-loaded="14.1279.0" data-gr-ext-installed="">
+
+<!-- HEADER -->
+<div class="header">
+  <!-- ZOPA Board -->
+  <div class="zopa-panel" id="zopa-panel">
+    <div class="zopa-title" data-i18n="zopaTitle">Negotiation Space (ZOPA)</div>
+    <div class="zopa-chart">
+      <div class="z-bar us" id="z-us" data-i18n="ourZone" style="left: 35%;">Our Zone</div>
+      <div class="z-label top" id="l-us-min" style="left: 35%;">Our min: €85k</div>
+      
+      <div class="z-bar them" id="z-them" data-i18n="clientZone" style="right: 74%;">Client Zone</div>
+      <div class="z-label bottom" id="l-them-max" style="left: 26%;">Their max: €76k</div>
+      
+      <div class="z-zopa" id="z-zopa" style="left: 35%; right: 52%;"></div>
+    </div>
+  </div>
+
+  <div class="call-meta">
+    <div class="lang-switch">
+      <select id="lang-select" onchange="setLanguage(this.value)">
+        <option value="en" selected="">EN</option>
+        <option value="pl">PL</option>
+        <option value="ua">UA</option>
+        <option value="ru">RU</option>
+      </select>
+    </div>
+    <input type="password" id="api-key-input" placeholder="Google Gemini API Key" style="font-size:11px; padding:4px 8px; border-radius:4px; background:var(--surface); color:var(--text); border:1px solid var(--border); outline:none; width:150px; margin-right:4px;" />
+    <select id="audio-src" style="font-size:11px; padding:4px 8px; border-radius:4px; background:var(--surface); color:var(--text); border:1px solid var(--border); outline:none; appearance:none;">
+      <option value="system">🖥 System Audio</option>
+      <option value="mic">🎤 Microphone</option>
+    </select>
+    <button id="btn-session" style="font-size:11px; padding:6px 14px; border-radius:5px; border:none; background:var(--blue); color:white; font-weight:600; cursor:pointer; transition:0.2s;">🎙 Start Session</button>
+    <button id="btn-dev" style="font-size:11px; padding:6px 10px; border-radius:5px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; margin-left:8px;" onclick="window.toggleDevConsole()">▤ Dev Console</button>
+    <div class="live" id="status-ind" style="color:var(--muted); gap: 6px;"><div class="live-dot" id="status-dot" style="background:var(--muted); animation:none;"></div><span id="status-text">Idle</span></div>
+    <div class="timer" id="timer">00:00</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- LEFT CONTENT -->
+  <div class="left">
+
+    <div class="mode-glow opp" id="mode-glow"></div>
+
+    <div class="bg-silhouette">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMax meet">
+        <circle cx="50" cy="30" r="18" fill="currentColor"></circle>
+        <path d="M 15 100 C 15 55, 85 55, 85 100" fill="currentColor"></path>
+      </svg>
+    </div>
+
+    <!-- Метка зоны взгляда -->
+    <div class="eye-label" data-i18n="gazeZone">gaze zone · camera</div>
+    
+    <!-- Название фазы -->
+    <div class="mode-text opp" id="mode-text" data-i18n="phaseCoop">Phase: Confrontation</div>
+
+    <!-- СУФЛЁР -->
+    <div class="sufler">
+      <div class="sufler-tag" data-i18n="whatToSay">→ what to say</div>
+      <div class="hint" id="hint">
+        <span class="arr">→</span><span id="hint-text">Competitor SAP mentioned — use the speed argument</span>
+      </div>
+    </div>
+
+    <!-- Волна (Talk-to-Listen Ratio) -->
+    <div class="wave-area">
+      <canvas id="wv" width="440" height="72"></canvas>
+      <div class="speaker-ratio" id="spk-tag">
+        <span class="sr-them sr-inactive" id="sr-them">Client: 59%</span>
+        <span class="sr-div">|</span>
+        <span class="sr-us sr-active" id="sr-us">You: 41%</span>
+      </div>
+    </div>
+
+    <!-- HYBRID AGENDA -->
+    <div class="agenda-hybrid" id="agenda-player">
+      <div class="player-cover">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      </div>
+      <div class="gantt-track" id="agenda-steps"><div id="step-0" class="g-step done"></div><div id="step-1" class="g-step done"></div><div id="step-2" class="g-step active ">
+          <div class="g-active-top">
+            <div class="g-active-title"><div class="g-dot"></div>Pitch / Demo</div>
+            <div class="g-time" id="time-2">09:30 / 13:00</div>
+          </div>
+          <div class="g-bar"><div class="g-fill" id="fill-2" style="width: 73.0769%;"></div></div>
+        </div><div id="step-3" class="g-step upcoming">Trading (ZOPA)</div><div id="step-4" class="g-step upcoming">Next Steps</div></div>
+    </div>
+
+    <!-- BATTLECARD -->
+    <div class="battlecard" id="bc">
+      <div class="bc-tag" data-i18n="factsData">← facts · data</div>
+      <div class="bc-top">
+        <div class="bc-label" data-i18n="compMentioned">⚡ Competitor mentioned</div>
+        <div class="bc-timer" id="bc-t">0s</div>
+      </div>
+      <div class="bc-title">NegotiateAI vs SAP</div>
+      <div class="bc-list">
+        <div class="bc-item" data-i18n="bcItem1">SAP impl: 6–18 mos. — launch in 2 weeks</div>
+        <div class="bc-item" data-i18n="bcItem2">40% lower TCO with similar features</div>
+        <div class="bc-item" data-i18n="bcItem3">Native Zoom/Teams integration, no install</div>
+      </div>
+      <div class="bc-prog"><div class="bc-fill" id="bc-fill" style="width: 0%;"></div></div>
+      <button class="bc-close" onclick="hideCard()" data-i18n="close">Close</button>
+    </div>
+
+    <!-- Лог триггеров -->
+    <div class="trigger-log" id="trigger-log">
+      <!-- Triggers injected here -->
+      <div class="trig fresh" data-i18n="trig1">⚡ Competitor: SAP · 14:14</div>
+      <div class="trig" data-i18n="trig2">📋 Budget: gap · 10:02</div>
+      <div class="trig" data-i18n="trig3">⏸ Pause 7s · 08:45</div>
+      <div class="trig" data-i18n="trig4">📊 Contradiction · 06:30</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DEV CONSOLE -->
+<div id="dev-console" style="display:none; position:fixed; right:0; top:64px; bottom:0; width:450px; background:var(--surface); border-left:1px solid var(--border); z-index:9999; flex-direction:column; font-family:monospace; font-size:11px;">
+   <div style="padding:10px; background:var(--bg); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <strong style="color:var(--text); font-size:12px;">Dev Console (Live API Traffic)</strong>
+      <button onclick="window.toggleDevConsole()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">✕</button>
+   </div>
+   <div id="dev-logs" style="flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@fishjam-cloud/browser-sdk/dist/fishjam-browser-sdk.umd.js"></script>
+<script src="app.js"></script>
+
+<!-- Камера агента (локальний preview) -->
+<video id="video-local" autoplay muted playsinline style="
+  position:fixed; top:72px; right:20px; width:180px;
+  border-radius:10px; border:1px solid rgba(255,255,255,0.12); z-index:200;
+"></video>
+
+<!-- Smelter output — що бачать стажери на TV -->
+<div style="position:fixed; bottom:20px; right:20px; z-index:200;
+  border-radius:12px; overflow:hidden; border:1px solid rgba(110,231,247,0.3);">
+  <div style="font-size:10px; font-weight:700; letter-spacing:1px;
+    color:#6ee7f7; padding:5px 12px; background:rgba(110,231,247,0.08);">
+    ● TRAINEE VIEW · LIVE
+  </div>
+  <img src="trainee_view.png" style="width:240px; display:block;" alt="Trainee View" />
+</div>
+
+
+<deepl-input-controller translate="no"><template shadowrootmode="open"><link rel="stylesheet" href="chrome-extension://cofdbpoegempjloogbagkncekinflcnj/build/content.css"><div dir="ltr" style="visibility: initial !important;"><div class="dl-input-translation-container svelte-95aucy"><div></div></div></div></template></deepl-input-controller><iframe id="nr-ext-rsicon" style="position: absolute; display: none; width: 50px; height: 50px; z-index: 2147483647; border-style: none; background: transparent;" src="./NegotiateAI — Combined_files/saved_resource.html"></iframe></body><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open"><style>
+      div.grammarly-desktop-integration {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select:none;
+        user-select:none;
+      }
+
+      div.grammarly-desktop-integration:before {
+        content: attr(data-content);
+      }
+    </style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration></html>
